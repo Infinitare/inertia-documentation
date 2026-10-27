@@ -13,9 +13,9 @@ Inertia streams the transactions and bundles that pass through its network on th
 
 1. You open a bid stream with `SubmitBundles`.
 2. You subscribe to up to 1,024 accounts with `SubscribeOrderflow`.
-3. Inertia streams every transaction and bundle that touches one of your accounts, and holds it for 50 ms.
+3. Inertia streams every transaction and bundle that touches one of your accounts, and holds it for up to 50 ms.
 4. You bid on it with your own transactions and a tip.
-5. When the 50 ms are over, the highest tip wins. Inertia sends the streamed transactions and the winning bid to the validator as one bundle.
+5. When the auction closes, the highest tip wins. Inertia sends the streamed transactions and the winning bid to the validator as one bundle.
 
 ## Access
 
@@ -29,6 +29,8 @@ Inertia grants two permissions per key:
 | `intake` | `SubmitBundles` |
 
 You need both to bid. When Inertia revokes a permission, your open streams close within 30 seconds.
+
+Each node keeps one orderflow stream and one bid stream per key. When you open a new one, the node closes the old one.
 
 ## Connect
 

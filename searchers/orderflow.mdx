@@ -37,6 +37,10 @@ Each entry is one Solana `VersionedTransaction` in [wire format](/searchers/prot
 
 Transactions from the TPU and from Block Engine bundles arrive in the same format. The stream skips vote transactions.
 
+## Leader windows
+
+Inertia streams orderflow only during the leader windows of validators connected to Inertia. Between two windows the stream stays silent. How long the silence lasts depends on the leader schedule and on how much stake is connected to Inertia.
+
 ## Limits
 
 - Read the stream continuously. When your client falls behind, the node drops batches for your stream.

@@ -9,7 +9,7 @@ description: Bid tips to place your transactions directly behind a streamed bund
 
 Inertia holds a streamed bundle for bidding when it matches your orderflow subscription while your bid stream is open. Open `SubmitBundles` before you subscribe, and keep it open.
 
-Every held bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. Some streamed bundles are not up for auction. A bid on one of them returns `NOT_HELD`.
+Every held bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. Near the end of a [leader window](/searchers/orderflow#leader-windows), the auction closes 10 ms before the window ends, even if the 50 ms are not over yet. Some streamed bundles are not up for auction, and a bid on one of them returns `NOT_HELD`. A bundle with 5 transactions is never up for auction, since the limit of 5 transactions per bundle leaves no room for yours.
 
 ## Place a bid
 
@@ -51,7 +51,7 @@ Inertia checks every transaction in a bid with the same rules as the validator:
 - The transaction uses at most 64 accounts and lists each account once.
 - It keeps sysvars and built-in programs read-only.
 - Its compute budget instructions are valid.
-- It uses a recent blockhash or a valid durable nonce.
+- It uses a valid durable nonce, or a recent blockhash that the node knows.
 - Its address lookup tables exist and are active.
 - The bid contains no vote transactions.
 - Each transaction in the bid uses its own nonce.
@@ -113,5 +113,5 @@ For `REJECTED`, `detail` holds one of these rules:
 | `nonce_conflict` | Two transactions use the same nonce. |
 | `lookup_table` | An address lookup table is deactivated. |
 | `lookup_unresolved` | The node cannot load an address lookup table. |
-| `expired_blockhash` | The blockhash expired. |
+| `expired_blockhash` | The blockhash expired, or the node does not know it. |
 | `tracked_pool` | The transaction touches a pool that Inertia locks at the moment. |
