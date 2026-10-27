@@ -1,0 +1,104 @@
+---
+title: Submit bundles
+description: Bid tips to place your transactions directly behind a streamed bundle.
+---
+
+`SubmitBundles` is a bidirectional stream. You send bids, and Inertia answers every bid with a `BundleUpdate`. The call needs the `intake` permission.
+
+## Open the stream first
+
+Inertia holds a streamed bundle for bidding when it matches your orderflow subscription while your bid stream is open. Open `SubmitBundles` before you subscribe, and keep it open.
+
+The auction for a bundle closes 50 ms after Inertia holds it, and your network latency counts against those 50 ms. Some streamed bundles are not up for auction. A bid on one of them returns `NOT_HELD`.
+
+## Place a bid
+
+A bid is a `Bundle` message:
+
+- `signature` is the signature of the streamed bundle you bid on.
+- `transactions` holds your own signed, serialized transactions. Leave out the streamed transactions. Inertia puts them in front of yours.
+
+The streamed bundle and your transactions together may hold at most 5 transactions. You can send several bids in one `Bundles` message.
+
+### Tip
+
+Your tip is the sum of all System Program transfers from your transactions to an Inertia tip account. You pay it only if the bundle lands.
+
+```text
+TODO_TIP_ACCOUNT
+```
+
+Inertia rejects bids that touch the Jito tip payment programs. Pay your tip to the accounts above.
+
+### Checks
+
+Inertia checks every transaction in a bid with the same rules as the validator:
+
+- All signatures verify.
+- The transaction uses at most 64 accounts and lists each account once.
+- It keeps sysvars and built-in programs read-only.
+- Its compute budget instructions are valid.
+- It uses a recent blockhash or a valid durable nonce.
+- Its address lookup tables exist and are active.
+- The bid contains no vote transactions.
+- Each transaction in the bid uses its own nonce.
+
+A transaction that already passed through the orderflow fails with `DUPLICATE`. Your own transactions stay usable for a new bid after you were outbid.
+
+## Auction
+
+- The highest tip wins. On equal tips, the earlier bid wins.
+- When a higher bid arrives, the previous leader gets `Outbid` with the new tip. Your own earlier bid gets it too.
+- A bid that does not beat the current leader gets `Outbid` right away, with the winning tip.
+- To raise your bid, sign a new transaction with the higher tip and send it as a new bid.
+
+When the auction closes, Inertia sends the winning bundle to the validator, with the streamed transactions first and yours after them. The validator executes the bundle as a whole or not at all. You receive `Sent` with your tip. 10 ms later, Inertia also forwards the streamed transactions on their own as a fallback.
+
+## Updates
+
+Every `BundleUpdate` carries three fields:
+
+- `signature` is the streamed bundle you bid on.
+- `bid_signature` is the signature of the first transaction in your bid.
+- `update` is one of `Sent`, `Outbid` or `Rejected`.
+
+| Update | Meaning |
+| --- | --- |
+| `Sent` | Your bid won, and Inertia sent the bundle to the validator. `tip` is your tip. |
+| `Outbid` | Another bid tips more. `tip` is the winning tip. |
+| `Rejected` | Inertia dropped your bid. `reason` and `detail` say why. |
+
+Read the updates continuously. When your client falls behind, the node drops updates.
+
+### Rejection reasons
+
+| Reason | Meaning |
+| --- | --- |
+| `NOT_HELD` | The bundle is unknown, not up for auction, or its auction already closed. |
+| `BUNDLE_SIZE` | The bid has no transactions, or more than 5 together with the streamed bundle. |
+| `INVALID` | A transaction does not parse. |
+| `UNVERIFIED` | A signature does not verify. |
+| `DUPLICATE` | A transaction already passed through the orderflow. |
+| `NO_TIP` | No transaction transfers to a tip account. |
+| `REJECTED` | A transaction broke a validator rule. `detail` names the rule. |
+| `DROPPED` | The bid queue of the node was full. Send the bid again. |
+| `UNDELIVERABLE` | Your bid won, but no validator accepted the bundle. |
+
+For `REJECTED`, `detail` holds one of these rules:
+
+| Detail | Meaning |
+| --- | --- |
+| `account_count` | The transaction uses more than 64 accounts. |
+| `duplicate_account` | The transaction lists an account twice. |
+| `writes_reserved` | The transaction writes to a sysvar or a built-in program. |
+| `tip_program` | The transaction touches a Jito tip payment program. |
+| `blocklisted` | The transaction touches a blocked account. |
+| `compute_budget` | A compute budget instruction is invalid or repeated. |
+| `precompile` | A precompile instruction is too short for its signatures. |
+| `invalid_nonce` | The durable nonce instruction is invalid. |
+| `bundle_vote` | The bid contains a vote transaction. |
+| `nonce_conflict` | Two transactions use the same nonce. |
+| `lookup_table` | An address lookup table is deactivated. |
+| `lookup_unresolved` | The node cannot load an address lookup table. |
+| `expired_blockhash` | The blockhash expired. |
+| `tracked_pool` | The transaction touches a pool that Inertia locks at the moment. |

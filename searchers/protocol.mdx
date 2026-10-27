@@ -1,0 +1,167 @@
+---
+title: Protocol
+description: The searcher.proto definition and a minimal Rust client.
+---
+
+Generate a client for your language from `searcher.proto`. The node has no gRPC reflection, so tools like grpcurl need this file.
+
+## searcher.proto
+
+```protobuf
+syntax = "proto3";
+
+package inertia.searcher.v1;
+
+// Every call authenticates with the API key in the `x-api-key` metadata.
+service Searcher {
+  // Streams the transactions and bundles on their way to the validators, batched. Requires orderflow access.
+  rpc SubscribeOrderflow(SubscribeOrderflowRequest) returns (stream Bundles);
+
+  // Bids on streamed bundles and streams back what happened to every bid. Requires intake access.
+  rpc SubmitBundles(stream Bundles) returns (stream BundleUpdate);
+}
+
+message SubscribeOrderflowRequest {
+  // 1 to 1024 32-byte pubkeys, static or loaded from a lookup table. A bundle matches if any of its transactions
+  // touches one of them.
+  repeated bytes accounts = 1;
+}
+
+// Streamed: the signature of the first transaction and all transactions of the bundle, one for a plain transaction.
+// Submitted: the signature of the streamed bundle bid on and only the searcher's own transactions, which have to
+// transfer the tip to one of the tip accounts. Both together may not exceed 5 transactions.
+message Bundle {
+  bytes signature = 1;
+  repeated bytes transactions = 2;
+}
+
+message Bundles {
+  repeated Bundle bundles = 1;
+}
+
+message BundleUpdate {
+  // Signature of the streamed bundle the bid is on.
+  bytes signature = 1;
+  // Signature of the first transaction of the bid.
+  bytes bid_signature = 2;
+  oneof update {
+    Outbid outbid = 3;
+    Rejected rejected = 4;
+    Sent sent = 5;
+  }
+}
+
+// Another bid tips more, or the bid did not tip more than the winning one when it arrived.
+message Outbid {
+  uint64 tip = 1;
+}
+
+enum Reason {
+  REASON_UNSPECIFIED = 0;
+  // The signature is not held for bidding, it is unknown or its auction is closed.
+  NOT_HELD = 1;
+  // No transactions, or more than 5 together with the streamed bundle.
+  BUNDLE_SIZE = 2;
+  INVALID = 3;
+  UNVERIFIED = 4;
+  // A transaction was already seen on its way to the validators. Bids carry the searcher's own transactions only.
+  DUPLICATE = 5;
+  // No transfer to a tip account.
+  NO_TIP = 6;
+  // A transaction failed a validator rule, named in the detail.
+  REJECTED = 7;
+  // The bid queue was full.
+  DROPPED = 8;
+  // The bid won but no validator took the bundle.
+  UNDELIVERABLE = 9;
+}
+
+message Rejected {
+  Reason reason = 1;
+  string detail = 2;
+}
+
+// The bid won and its bundle was sent to the validator.
+message Sent {
+  uint64 tip = 1;
+}
+```
+
+## Rust client
+
+This client uses tonic 0.14. It opens the bid stream, subscribes to the orderflow, and sends a bid for every bundle your strategy picks. Save the protocol above as `proto/searcher.proto`.
+
+```toml Cargo.toml
+[dependencies]
+prost = "0.14"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-stream = "0.1"
+tonic = "0.14"
+tonic-prost = "0.14"
+
+[build-dependencies]
+tonic-prost-build = "0.14"
+```
+
+```rust build.rs
+fn main() {
+    tonic_prost_build::compile_protos("proto/searcher.proto").unwrap();
+}
+```
+
+```rust src/main.rs
+use tokio::sync::mpsc;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::ReceiverStream;
+use tonic::Request;
+use tonic::transport::Channel;
+
+pub mod searcher {
+    tonic::include_proto!("inertia.searcher.v1");
+}
+
+use searcher::bundle_update::Update;
+use searcher::searcher_client::SearcherClient;
+use searcher::{Bundle, Bundles, SubscribeOrderflowRequest};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let channel = Channel::from_static("http://ENDPOINT:11227").connect().await?;
+    let api_key: tonic::metadata::MetadataValue<_> = "YOUR_API_KEY".parse()?;
+    let mut client = SearcherClient::with_interceptor(channel, move |mut request: Request<()>| {
+        request.metadata_mut().insert("x-api-key", api_key.clone());
+        Ok(request)
+    });
+
+    // Open the bid stream first. The node only holds bundles for searchers with an open bid stream.
+    let (bids, outbound) = mpsc::channel::<Bundles>(1024);
+    let mut updates = client.submit_bundles(ReceiverStream::new(outbound)).await?.into_inner();
+    tokio::spawn(async move {
+        while let Some(Ok(update)) = updates.next().await {
+            match update.update {
+                Some(Update::Sent(sent)) => println!("won, tip {}", sent.tip),
+                Some(Update::Outbid(outbid)) => println!("outbid, winning tip {}", outbid.tip),
+                Some(Update::Rejected(rejected)) => println!("rejected {:?} {}", rejected.reason(), rejected.detail),
+                None => {}
+            }
+        }
+    });
+
+    let accounts = vec![/* 32-byte pubkeys of the accounts you want to watch */];
+    let mut orderflow = client.subscribe_orderflow(SubscribeOrderflowRequest { accounts }).await?.into_inner();
+    while let Some(batch) = orderflow.next().await {
+        for bundle in batch?.bundles {
+            if let Some(transactions) = build_bid(&bundle) {
+                let bid = Bundle { signature: bundle.signature, transactions };
+                bids.send(Bundles { bundles: vec![bid] }).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+// Your strategy. Return your own signed transactions, one of them transferring the tip to a tip account.
+fn build_bid(_bundle: &Bundle) -> Option<Vec<Vec<u8>>> {
+    None
+}
+```

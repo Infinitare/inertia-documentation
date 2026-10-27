@@ -1,0 +1,47 @@
+---
+title: Stream orderflow
+description: Subscribe to the transactions and bundles that touch your accounts.
+---
+
+`SubscribeOrderflow` streams every transaction and bundle that touches one of your accounts on its way to the validators. The call needs the `orderflow` permission.
+
+## Subscribe
+
+Send 1 to 1,024 accounts as raw 32-byte public keys. A bundle matches when any of its transactions uses one of them. Accounts loaded from an address lookup table count too.
+
+```protobuf
+message SubscribeOrderflowRequest {
+  repeated bytes accounts = 1;
+}
+```
+
+To test your key, subscribe with [grpcurl](https://github.com/fullstorydev/grpcurl) and the [protocol file](/searchers/protocol). grpcurl reads and prints bytes as base64. The account below is the Pump.fun program `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`.
+
+```bash
+grpcurl -plaintext \
+  -proto searcher.proto \
+  -H 'x-api-key: YOUR_API_KEY' \
+  -d '{"accounts": ["AVbg9pNmWs9E2xVovxdbqlGJy5f10v87ZV0rtv1tGLA="]}' \
+  TODO_ENDPOINT:11227 \
+  inertia.searcher.v1.Searcher/SubscribeOrderflow
+```
+
+## Messages
+
+Each `Bundles` message carries a batch of bundles. A bundle has two fields:
+
+- `signature` is the 64-byte signature of the first transaction. You bid with this value.
+- `transactions` holds the serialized transactions in execution order. A single transaction arrives as a bundle with one entry.
+
+Transactions from the TPU and from Block Engine bundles arrive in the same format. The stream skips vote transactions.
+
+## Limits
+
+- Read the stream continuously. When your client falls behind, the node drops batches for your stream.
+- Each node serves a limited number of orderflow streams across all searchers. When all are taken, the call fails with `RESOURCE_EXHAUSTED`.
+
+| Status | Cause |
+| --- | --- |
+| `INVALID_ARGUMENT` | No accounts, more than 1,024 accounts, or an account that is not 32 bytes long. |
+| `PERMISSION_DENIED` | The key lacks the `orderflow` permission. |
+| `RESOURCE_EXHAUSTED` | All orderflow streams on this node are taken. |

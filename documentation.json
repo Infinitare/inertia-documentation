@@ -22,13 +22,28 @@
         "icon": "book",
         "groups": [
           {
-            "group": "Getting Started",
-            "icon": "rocket",
+            "group": "Searchers",
+            "icon": "search",
             "pages": [
               {
-                "title": "Introduction",
-                "path": "introduction",
-                "icon": "home"
+                "title": "Overview",
+                "path": "searchers/overview",
+                "icon": "info"
+              },
+              {
+                "title": "Stream orderflow",
+                "path": "searchers/orderflow",
+                "icon": "radio"
+              },
+              {
+                "title": "Submit bundles",
+                "path": "searchers/bundles",
+                "icon": "send"
+              },
+              {
+                "title": "Protocol",
+                "path": "searchers/protocol",
+                "icon": "file-code"
               }
             ]
           }

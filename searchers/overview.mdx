@@ -1,0 +1,42 @@
+---
+title: Searchers
+description: Stream the Inertia orderflow and bid tips to place your bundle directly behind a transaction.
+---
+
+Inertia streams the transactions and bundles that pass through its network on their way to the validators. You subscribe to the accounts you care about, and you bid tips to place your own transactions directly behind a streamed transaction.
+
+## How it works
+
+1. You open a bid stream with `SubmitBundles`.
+2. You subscribe to up to 1,024 accounts with `SubscribeOrderflow`.
+3. Inertia streams every transaction and bundle that touches one of your accounts, and holds it for 50 ms.
+4. You bid on it with your own transactions and a tip.
+5. When the 50 ms are over, the highest tip wins. Inertia sends the streamed transactions and the winning bid to the validator as one bundle.
+
+## Access
+
+Every call needs an API key. To get one, contact TODO_CONTACT.
+
+Inertia grants two permissions per key:
+
+| Permission | Call |
+| --- | --- |
+| `orderflow` | `SubscribeOrderflow` |
+| `intake` | `SubmitBundles` |
+
+You need both to bid. When Inertia revokes a permission, your open streams close within 30 seconds.
+
+## Connect
+
+The API is gRPC over HTTP/2 without TLS, on port 11227. The service is `Searcher` in the package `inertia.searcher.v1`. Send your API key in the `x-api-key` metadata of every call.
+
+| Region | Endpoint |
+| --- | --- |
+| TODO_REGION | `TODO_ENDPOINT:11227` |
+
+Each node streams only the orderflow that passes through it. Connect to every node your key works on, and send each bid to the node that streamed the bundle.
+
+| Status | Cause |
+| --- | --- |
+| `UNAUTHENTICATED` | The `x-api-key` metadata is missing, or the key is unknown. |
+| `PERMISSION_DENIED` | The key lacks the permission for this call. |
