@@ -37,7 +37,7 @@ in9BDFiz3As4RHDgDMtE1X9kesp51X7XJeFRMLJrNNc
 inXxoQFSm3Z3WUohBphrT55tCAbBT8nPJaqViTbfhUo
 ```
 
-Inertia rejects bids that touch the Jito tip payment programs. Pay your tip to the accounts above.
+Only transfers to the accounts above count. A transfer to a Jito tip account adds nothing to your bid.
 
 ### Checks
 
@@ -100,7 +100,7 @@ For `REJECTED`, `detail` holds one of these rules:
 | `account_count` | The transaction uses more than 64 accounts. |
 | `duplicate_account` | The transaction lists an account twice. |
 | `writes_reserved` | The transaction writes to a sysvar or a built-in program. |
-| `tip_program` | The transaction touches a Jito tip payment program. |
+| `tip_program` | The transaction references the Jito Tip Payment or Tip Distribution program. |
 | `blocklisted` | The transaction touches a blocked account. |
 | `compute_budget` | A compute budget instruction is invalid or repeated. |
 | `precompile` | A precompile instruction is too short for its signatures. |
