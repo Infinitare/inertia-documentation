@@ -22,7 +22,7 @@ grpcurl -plaintext \
   -proto searcher.proto \
   -H 'x-api-key: YOUR_API_KEY' \
   -d '{"accounts": ["AVbg9pNmWs9E2xVovxdbqlGJy5f10v87ZV0rtv1tGLA="]}' \
-  TODO_ENDPOINT:11227 \
+  84.32.103.226:11227 \
   inertia.searcher.v1.Searcher/SubscribeOrderflow
 ```
 
@@ -31,7 +31,9 @@ grpcurl -plaintext \
 Each `Bundles` message carries a batch of bundles. A bundle has two fields:
 
 - `signature` is the 64-byte signature of the first transaction. You bid with this value.
-- `transactions` holds the serialized transactions in execution order. A single transaction arrives as a bundle with one entry.
+- `transactions` holds the transactions in execution order. A single transaction arrives as a bundle with one entry.
+
+Each entry is one Solana `VersionedTransaction` in [wire format](/searchers/protocol#transaction-format).
 
 Transactions from the TPU and from Block Engine bundles arrive in the same format. The stream skips vote transactions.
 

@@ -9,14 +9,14 @@ description: Bid tips to place your transactions directly behind a streamed bund
 
 Inertia holds a streamed bundle for bidding when it matches your orderflow subscription while your bid stream is open. Open `SubmitBundles` before you subscribe, and keep it open.
 
-The auction for a bundle closes 50 ms after Inertia holds it, and your network latency counts against those 50 ms. Some streamed bundles are not up for auction. A bid on one of them returns `NOT_HELD`.
+Every held bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. Some streamed bundles are not up for auction. A bid on one of them returns `NOT_HELD`.
 
 ## Place a bid
 
 A bid is a `Bundle` message:
 
 - `signature` is the signature of the streamed bundle you bid on.
-- `transactions` holds your own signed, serialized transactions. Leave out the streamed transactions. Inertia puts them in front of yours.
+- `transactions` holds your own signed transactions in the same [wire format](/searchers/protocol#transaction-format) as the stream. Leave out the streamed transactions. Inertia puts them in front of yours.
 
 The streamed bundle and your transactions together may hold at most 5 transactions. You can send several bids in one `Bundles` message.
 
@@ -25,7 +25,16 @@ The streamed bundle and your transactions together may hold at most 5 transactio
 Your tip is the sum of all System Program transfers from your transactions to an Inertia tip account. You pay it only if the bundle lands.
 
 ```text
-TODO_TIP_ACCOUNT
+in1KQyYPQnUQ9uReh7fzgFDKQZr8mq25JJeDB2eJYYr
+in2kLfsh5LZJiDMPETRkvmNPZMSiua44AJfqs1TUkJA
+in3CjqEzBtkGGi7hCaYLeBqj6C6MXFack9jyH37xeRF
+in4fmpuNUuManQiKzuXuBwnfXYh3NaWURtvTm6bMRnc
+in5Af14mrr7xXdaZCpjnhQfgY95wHcHgpqD9JtAHvSm
+in6zq3HpnFvGSfHWXC4fs56aqh6wVBU89oNnYKueKjG
+in7hD8ei3YeyCkyFB7K265gCJ3fMDGZrgC2XLAVF3vp
+in8RrQByaVGZNGzrMvRC4Vbmq1iAyvnn8ThAQKRJH5x
+in9BDFiz3As4RHDgDMtE1X9kesp51X7XJeFRMLJrNNc
+inXxoQFSm3Z3WUohBphrT55tCAbBT8nPJaqViTbfhUo
 ```
 
 Inertia rejects bids that touch the Jito tip payment programs. Pay your tip to the accounts above.

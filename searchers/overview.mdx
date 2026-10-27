@@ -3,6 +3,10 @@ title: Searchers
 description: Stream the Inertia orderflow and bid tips to place your bundle directly behind a transaction.
 ---
 
+<Callout kind="alert">
+The searcher API is in early alpha. The API, its limits and the auction rules can change.
+</Callout>
+
 Inertia streams the transactions and bundles that pass through its network on their way to the validators. You subscribe to the accounts you care about, and you bid tips to place your own transactions directly behind a streamed transaction.
 
 ## How it works
@@ -15,7 +19,7 @@ Inertia streams the transactions and bundles that pass through its network on th
 
 ## Access
 
-Every call needs an API key. To get one, contact TODO_CONTACT.
+Every call needs an API key. Ask for one on [Telegram](https://t.me/inertiamev) or [Discord](https://discord.gg/mts4daSNvr).
 
 Inertia grants two permissions per key:
 
@@ -32,9 +36,9 @@ The API is gRPC over HTTP/2 without TLS, on port 11227. The service is `Searcher
 
 | Region | Endpoint |
 | --- | --- |
-| TODO_REGION | `TODO_ENDPOINT:11227` |
+| Amsterdam | `84.32.103.226:11227` |
 
-Each node streams only the orderflow that passes through it. Connect to every node your key works on, and send each bid to the node that streamed the bundle.
+More regions are coming. Each node streams only the orderflow that passes through it. Connect to every node your key works on, and send each bid to the node that streamed the bundle.
 
 | Status | Cause |
 | --- | --- |

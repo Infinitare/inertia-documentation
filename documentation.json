@@ -15,6 +15,13 @@
   "customCss": [
     { "src": "styles/brand.css" }
   ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/searchers/overview",
+      "statusCode": 307
+    }
+  ],
   "navigation": {
     "tabs": [
       {

@@ -1,6 +1,6 @@
 ---
 title: Protocol
-description: The searcher.proto definition and a minimal Rust client.
+description: The searcher.proto definition and the format of the transaction bytes.
 ---
 
 Generate a client for your language from `searcher.proto`. The node has no gRPC reflection, so tools like grpcurl need this file.
@@ -87,81 +87,17 @@ message Sent {
 }
 ```
 
-## Rust client
+## Transaction format
 
-This client uses tonic 0.14. It opens the bid stream, subscribes to the orderflow, and sends a bid for every bundle your strategy picks. Save the protocol above as `proto/searcher.proto`.
+Every entry in `transactions` is one serialized Solana `VersionedTransaction`. These are the bytes you base64-encode for the `sendTransaction` RPC call. The message can be legacy, v0 or v1.
 
-```toml Cargo.toml
-[dependencies]
-prost = "0.14"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-tokio-stream = "0.1"
-tonic = "0.14"
-tonic-prost = "0.14"
+In Rust, `bincode` parses the bytes into `solana_transaction::versioned::VersionedTransaction`, and serializes your bid transactions the same way:
 
-[build-dependencies]
-tonic-prost-build = "0.14"
+```rust
+use solana_transaction::versioned::VersionedTransaction;
+
+let transaction: VersionedTransaction = bincode::deserialize(&bytes)?;
+let bytes = bincode::serialize(&transaction)?;
 ```
 
-```rust build.rs
-fn main() {
-    tonic_prost_build::compile_protos("proto/searcher.proto").unwrap();
-}
-```
-
-```rust src/main.rs
-use tokio::sync::mpsc;
-use tokio_stream::StreamExt;
-use tokio_stream::wrappers::ReceiverStream;
-use tonic::Request;
-use tonic::transport::Channel;
-
-pub mod searcher {
-    tonic::include_proto!("inertia.searcher.v1");
-}
-
-use searcher::bundle_update::Update;
-use searcher::searcher_client::SearcherClient;
-use searcher::{Bundle, Bundles, SubscribeOrderflowRequest};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let channel = Channel::from_static("http://ENDPOINT:11227").connect().await?;
-    let api_key: tonic::metadata::MetadataValue<_> = "YOUR_API_KEY".parse()?;
-    let mut client = SearcherClient::with_interceptor(channel, move |mut request: Request<()>| {
-        request.metadata_mut().insert("x-api-key", api_key.clone());
-        Ok(request)
-    });
-
-    // Open the bid stream first. The node only holds bundles for searchers with an open bid stream.
-    let (bids, outbound) = mpsc::channel::<Bundles>(1024);
-    let mut updates = client.submit_bundles(ReceiverStream::new(outbound)).await?.into_inner();
-    tokio::spawn(async move {
-        while let Some(Ok(update)) = updates.next().await {
-            match update.update {
-                Some(Update::Sent(sent)) => println!("won, tip {}", sent.tip),
-                Some(Update::Outbid(outbid)) => println!("outbid, winning tip {}", outbid.tip),
-                Some(Update::Rejected(rejected)) => println!("rejected {:?} {}", rejected.reason(), rejected.detail),
-                None => {}
-            }
-        }
-    });
-
-    let accounts = vec![/* 32-byte pubkeys of the accounts you want to watch */];
-    let mut orderflow = client.subscribe_orderflow(SubscribeOrderflowRequest { accounts }).await?.into_inner();
-    while let Some(batch) = orderflow.next().await {
-        for bundle in batch?.bundles {
-            if let Some(transactions) = build_bid(&bundle) {
-                let bid = Bundle { signature: bundle.signature, transactions };
-                bids.send(Bundles { bundles: vec![bid] }).await?;
-            }
-        }
-    }
-    Ok(())
-}
-
-// Your strategy. Return your own signed transactions, one of them transferring the tip to a tip account.
-fn build_bid(_bundle: &Bundle) -> Option<Vec<Vec<u8>>> {
-    None
-}
-```
+This works with `bincode` 1 and `solana-transaction` 4.3 with the `serde` feature, which parses all three message formats.
