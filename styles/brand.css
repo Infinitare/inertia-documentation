@@ -1,0 +1,7 @@
+/* Inertia brand typography, matching inertia.sh */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap");
+
+:root,
+body {
+  --font-inter: "Geist", system-ui, -apple-system, sans-serif !important;
+}
