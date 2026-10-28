@@ -51,7 +51,8 @@ message BundleUpdate {
   }
 }
 
-// Another bid tips more, or the bid did not tip more than the winning one when it arrived.
+// Another bid tips more, or the bid did not tip more than the winning one when it arrived. The bid can still be sent
+// as a backup, see Sent.
 message Outbid {
   uint64 tip = 1;
 }
@@ -81,9 +82,11 @@ message Rejected {
   string detail = 2;
 }
 
-// The bid won and its bundle was sent to the validator.
+// The bid's bundle was sent to the validator. Rank 0 is the winning bid, the next highest bids of other searchers follow
+// as ranks 1 and 2 and only land if every bundle before them failed. Only the highest bid of each searcher is kept.
 message Sent {
   uint64 tip = 1;
+  uint32 rank = 2;
 }
 ```
 

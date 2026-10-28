@@ -3,7 +3,7 @@ title: Submit bundles
 description: Bid tips to place your transactions directly behind a streamed bundle.
 ---
 
-`SubmitBundles` is a bidirectional stream. You send bids, and Inertia answers every bid with a `BundleUpdate`. The call needs the `intake` permission.
+`SubmitBundles` is a bidirectional stream. You send bids, and Inertia streams back a `BundleUpdate` for everything that happens to them. The call needs the `intake` permission.
 
 ## Open the stream first
 
@@ -60,12 +60,14 @@ A transaction that already passed through the orderflow fails with `DUPLICATE`. 
 
 ## Auction
 
-- The highest tip wins. On equal tips, the earlier bid wins.
-- When a higher bid arrives, the previous leader gets `Outbid` with the new tip. Your own earlier bid gets it too.
-- A bid that does not beat the current leader gets `Outbid` right away, with the winning tip.
-- To raise your bid, sign a new transaction with the higher tip and send it as a new bid.
+Inertia keeps the 3 highest bids on a bundle, and only your highest bid among them.
 
-When the auction closes, Inertia sends the winning bundle to the validator, with the streamed transactions first and yours after them. The validator executes the bundle as a whole or not at all. You receive `Sent` with your tip. 10 ms later, Inertia also forwards the streamed transactions on their own as a fallback.
+- The highest tip wins. On equal tips, the earlier bid wins.
+- When a higher bid arrives, the previous leader gets `Outbid` with the new tip, even when it is your own.
+- A bid that does not beat the current leader gets `Outbid` right away, with the winning tip. Inertia keeps it as a backup when it is among the 3 highest bids.
+- To raise your bid, sign a new transaction with the higher tip and send it as a new bid. It replaces your earlier bid on the bundle. A bid that does not beat your own earlier bid gets `Outbid` with the winning tip, and the earlier bid stays.
+
+When the auction closes, Inertia sends one bundle per kept bid to the validator, highest tip first. Each bundle holds the streamed transactions first and the bid after them. The validator executes a bundle as a whole or not at all, and it runs the bundles in order. Once one bundle lands, every bundle behind it fails, because the validator already processed the streamed transactions. A backup lands only when every bundle before it failed. Every bid in a sent bundle gets `Sent` with its tip and rank. 10 ms later, Inertia also forwards the streamed transactions on their own as a fallback.
 
 ## Updates
 
@@ -77,11 +79,11 @@ Every `BundleUpdate` carries three fields:
 
 | Update | Meaning |
 | --- | --- |
-| `Sent` | Your bid won, and Inertia sent the bundle to the validator. `tip` is your tip. |
-| `Outbid` | Another bid tips more. `tip` is the winning tip. |
+| `Sent` | Inertia sent your bundle to the validator. `tip` is your tip. `rank` is the position of your bundle. 0 goes first, 1 and 2 are backups behind it. |
+| `Outbid` | Another bid tips more. `tip` is the winning tip. Inertia may still send your bid as a backup. |
 | `Rejected` | Inertia dropped your bid. `reason` and `detail` say why. |
 
-Read the updates continuously. When your client falls behind, the node drops updates.
+A bid can get `Outbid` first and `Sent` as a backup later. Read the updates continuously. When your client falls behind, the node drops updates.
 
 ### Rejection reasons
 
@@ -95,7 +97,7 @@ Read the updates continuously. When your client falls behind, the node drops upd
 | `NO_TIP` | No transaction transfers to a tip account. |
 | `REJECTED` | A transaction broke a validator rule. `detail` names the rule. |
 | `DROPPED` | The bid queue of the node was full. Send the bid again. |
-| `UNDELIVERABLE` | Your bid won, but no validator accepted the bundle. |
+| `UNDELIVERABLE` | Inertia tried to send your bundle, but no validator accepted it. |
 
 For `REJECTED`, `detail` holds one of these rules:
 

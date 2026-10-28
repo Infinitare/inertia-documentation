@@ -16,6 +16,7 @@ Inertia streams the transactions and bundles that pass through its network on th
 3. Inertia streams every transaction and bundle that touches one of your accounts, and holds it for up to 50 ms.
 4. You bid on it with your own transactions and a tip.
 5. When the auction closes, the highest tip wins. Inertia sends the streamed transactions and the winning bid to the validator as one bundle.
+6. The next two highest bids follow as backup bundles. A backup lands only when every bundle before it failed.
 
 ## Access
 
