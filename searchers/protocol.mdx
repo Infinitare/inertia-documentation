@@ -19,6 +19,24 @@ service Searcher {
 
   // Bids on streamed bundles and streams back what happened to every bid. Requires intake access.
   rpc SubmitBundles(stream Bundles) returns (stream BundleUpdate);
+
+  // Returns the upcoming leader windows of the validators behind this node, as far as the leader schedule is known.
+  rpc GetLeaderWindows(GetLeaderWindowsRequest) returns (LeaderWindows);
+}
+
+message GetLeaderWindowsRequest {}
+
+message LeaderWindow {
+  uint64 first_slot = 1;
+  uint64 last_slot = 2;
+}
+
+message LeaderWindows {
+  // Slot the node was at when answering.
+  uint64 slot = 1;
+  // At most 10, in slot order. The window of the current slot is included while it lasts. Fewer are returned when the
+  // leader schedule does not reach further.
+  repeated LeaderWindow windows = 2;
 }
 
 message SubscribeOrderflowRequest {

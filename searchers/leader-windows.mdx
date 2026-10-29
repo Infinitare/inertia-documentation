@@ -1,0 +1,67 @@
+---
+title: Leader windows
+description: See when the validators connected to a node lead next.
+---
+
+`GetLeaderWindows` returns the upcoming leader windows of the validators connected to a node. Between these windows the [orderflow stream](/searchers/orderflow#leader-windows) stays silent. Any API key can call it, without the `orderflow` or `intake` permission.
+
+Each node lists only the validators connected to it at the moment of the call. Call `GetLeaderWindows` on every node you connect to.
+
+## Call
+
+The request has no fields.
+
+```protobuf
+message GetLeaderWindowsRequest {}
+```
+
+Try it with [grpcurl](https://github.com/fullstorydev/grpcurl) and the [protocol file](/searchers/protocol):
+
+```bash
+grpcurl -plaintext \
+  -proto searcher.proto \
+  -H 'x-api-key: YOUR_API_KEY' \
+  84.32.103.226:11227 \
+  inertia.searcher.v1.Searcher/GetLeaderWindows
+```
+
+grpcurl prints the slot numbers as strings:
+
+```json
+{
+  "slot": "444081230",
+  "windows": [
+    {
+      "firstSlot": "444081228",
+      "lastSlot": "444081231"
+    },
+    {
+      "firstSlot": "444081652",
+      "lastSlot": "444081655"
+    },
+    {
+      "firstSlot": "444083104",
+      "lastSlot": "444083107"
+    }
+  ]
+}
+```
+
+## Response
+
+`LeaderWindows` has two fields:
+
+- `slot` is the slot the node was at when it answered.
+- `windows` holds up to 10 windows in slot order.
+
+A window covers 4 consecutive slots, from `first_slot` to `last_slot`, both included. A slot currently lasts about 210 ms, so a window lasts about 840 ms. When a validator leads several windows in a row, each window is its own entry.
+
+While a connected validator leads, the list starts with its current window. That window's `first_slot` can be lower than `slot`, as in the example above.
+
+The node knows the leader schedule 32,000 slots ahead, about 2 hours. The list holds fewer than 10 windows when connected validators lead fewer than 10 windows within that range. It is empty when none of them leads, or while the node is still loading the schedule after a restart.
+
+## Errors
+
+| Status | Cause |
+| --- | --- |
+| `UNAUTHENTICATED` | The `x-api-key` metadata is missing, or the key is unknown. |

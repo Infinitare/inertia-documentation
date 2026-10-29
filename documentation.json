@@ -48,6 +48,11 @@
                 "icon": "send"
               },
               {
+                "title": "Leader windows",
+                "path": "searchers/leader-windows",
+                "icon": "clock"
+              },
+              {
                 "title": "Protocol",
                 "path": "searchers/protocol",
                 "icon": "file-code"
