@@ -3,7 +3,7 @@ title: Stream orderflow
 description: Subscribe to the transactions and bundles that touch your accounts.
 ---
 
-`SubscribeOrderflow` streams every transaction and bundle that touches one of your accounts on its way to the validators. The call needs the `orderflow` permission.
+`SubscribeOrderflow` streams the transactions and bundles that touch one of your accounts on their way to the validators. The call needs the `orderflow` permission.
 
 ## Subscribe
 
@@ -35,11 +35,19 @@ Each `Bundles` message carries a batch of bundles. A bundle has two fields:
 
 Each entry is one Solana `VersionedTransaction` in [wire format](/searchers/protocol#transaction-format).
 
-Transactions from the TPU and from Block Engine bundles arrive in the same format. The stream skips vote transactions.
+Transactions from the TPU and from Block Engine bundles arrive in the same format. The stream skips vote transactions. It also skips transactions signed by one of these accounts, whose auctions never landed, and any bundle that contains one:
+
+```text
+2gF2drQYrkXJGXCAgkubt4jD38QkfcC6q9MdoRfW6JYG
+9nXDunV8eNvYSVys7JSBkm2hz9Q79Q3EYeko19srVeMC
+A8A9GoxfmcjY2QAQ8tYS98SqDBF6hUFDmxAKBsLw29sL
+```
 
 ## Leader windows
 
-Inertia streams orderflow only during the leader windows of validators connected to Inertia. Between two windows the stream stays silent. How long the silence lasts depends on the leader schedule and on how much stake is connected to Inertia. [`GetLeaderWindows`](/searchers/leader-windows) lists the next windows of each node.
+Inertia streams orderflow around the leader windows of validators connected to Inertia. The stream starts up to 8 slots before a window, currently about 1.7 seconds. A transaction that arrives within 50 ms of the estimated end of the window skips the stream and the auction, and goes straight to the validator.
+
+Outside these ranges the stream stays silent. How long the silence lasts depends on the leader schedule and on how much stake is connected to Inertia. [`GetLeaderWindows`](/searchers/leader-windows) lists the next windows of each node.
 
 ## Limits
 

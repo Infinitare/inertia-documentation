@@ -3,7 +3,7 @@ title: Leader windows
 description: See when the validators connected to a node lead next.
 ---
 
-`GetLeaderWindows` returns the upcoming leader windows of the validators connected to a node. Between these windows the [orderflow stream](/searchers/orderflow#leader-windows) stays silent. Any API key can call it, without the `orderflow` or `intake` permission.
+`GetLeaderWindows` returns the upcoming leader windows of the validators connected to a node. The [orderflow stream](/searchers/orderflow#leader-windows) starts up to 8 slots before each window and stays silent outside that range. Any API key can call it, without the `orderflow` or `intake` permission.
 
 Each node lists only the validators connected to it at the moment of the call. Call `GetLeaderWindows` on every node you connect to.
 

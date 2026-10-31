@@ -9,7 +9,9 @@ description: Bid tips to place your transactions directly behind a streamed bund
 
 Inertia holds a streamed bundle for bidding when it matches your orderflow subscription while your bid stream is open. Open `SubmitBundles` before you subscribe, and keep it open.
 
-Every held bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. Near the end of a [leader window](/searchers/orderflow#leader-windows), the auction closes 10 ms before the window ends, even if the 50 ms are not over yet. Some streamed bundles are not up for auction, and a bid on one of them returns `NOT_HELD`. A bundle with 5 transactions is never up for auction, since the limit of 5 transactions per bundle leaves no room for yours.
+Every held bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. Some streamed bundles are not up for auction, and a bid on one of them returns `NOT_HELD`. A bundle with 5 transactions is never up for auction, since the limit of 5 transactions per bundle leaves no room for yours.
+
+Auctions follow the [leader window](/searchers/orderflow#leader-windows). An auction can run up to 8 slots before the window starts. Inertia sends the bundle right after the auction closes, and it can land once the window starts. An auction that starts right before the cutoff at the end of the window still runs its full 50 ms, so its bundle can miss the window.
 
 ## Place a bid
 
@@ -67,7 +69,7 @@ Inertia keeps the 3 highest bids on a bundle, and only your highest bid among th
 - A bid that does not beat the current leader gets `Outbid` right away, with the winning tip. Inertia keeps it as a backup when it is among the 3 highest bids.
 - To raise your bid, sign a new transaction with the higher tip and send it as a new bid. It replaces your earlier bid on the bundle. A bid that does not beat your own earlier bid gets `Outbid` with the winning tip, and the earlier bid stays.
 
-When the auction closes, Inertia sends one bundle per kept bid to the validator, highest tip first. Each bundle holds the streamed transactions first and the bid after them. The validator executes a bundle as a whole or not at all, and it runs the bundles in order. Once one bundle lands, every bundle behind it fails, because the validator already processed the streamed transactions. A backup lands only when every bundle before it failed. Every bid in a sent bundle gets `Sent` with its tip and rank. 10 ms later, Inertia also forwards the streamed transactions on their own as a fallback.
+When the auction closes, Inertia sends one bundle per kept bid to the validator, highest tip first. Each bundle holds the streamed transactions first and the bid after them. The validator executes a bundle as a whole or not at all, and it runs the bundles in order. Once one bundle lands, every bundle behind it fails, because the validator already processed the streamed transactions. A backup lands only when every bundle before it failed. Every bid in a sent bundle gets `Sent` with its tip and rank. 25 ms later, Inertia also forwards the streamed transactions on their own as a fallback.
 
 ## Updates
 
