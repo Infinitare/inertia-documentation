@@ -11,7 +11,7 @@ Inertia streams only bundles that are up for auction. A bundle goes up for aucti
 
 Every streamed bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. A bundle with 5 transactions is never up for auction and never streamed, since the limit of 5 transactions per bundle leaves no room for yours.
 
-Auctions follow the [leader window](/searchers/orderflow#leader-windows). An auction can run up to 8 slots before the window starts. Inertia sends the bundle right after the auction closes, and it can land once the window starts. An auction that starts right before the cutoff at the end of the window still runs its full 50 ms, so its bundle can miss the window.
+Auctions follow the [leader window](/searchers/orderflow#leader-windows). An auction can run up to 8 slots before the window starts. Inertia sends the bundle right after the auction closes, and it can land once the window starts. The last auctions of a window start 75 ms before its estimated end, so they close with about 25 ms to spare.
 
 ## Place a bid
 

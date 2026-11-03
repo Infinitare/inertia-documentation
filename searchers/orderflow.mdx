@@ -45,7 +45,7 @@ A8A9GoxfmcjY2QAQ8tYS98SqDBF6hUFDmxAKBsLw29sL
 
 ## Leader windows
 
-Inertia streams orderflow around the leader windows of validators connected to Inertia. The stream starts up to 8 slots before a window, currently about 1.7 seconds. A transaction that arrives within 50 ms of the estimated end of the window skips the stream and the auction, and goes straight to the validator.
+Inertia streams orderflow around the leader windows of validators connected to Inertia. The stream starts up to 8 slots before a window, currently about 1.7 seconds. A transaction that arrives within 75 ms of the estimated end of the window skips the stream and the auction, and goes straight to the validator.
 
 Outside these ranges the stream stays silent. How long the silence lasts depends on the leader schedule and on how much stake is connected to Inertia. [`GetLeaderWindows`](/searchers/leader-windows) lists the next windows of each node.
 
