@@ -14,7 +14,8 @@ package inertia.searcher.v1;
 
 // Every call authenticates with the API key in the `x-api-key` metadata.
 service Searcher {
-  // Streams the transactions and bundles on their way to the validators, batched. Requires orderflow access.
+  // Streams the transactions and bundles that are up for auction on their way to the validators, batched. Requires
+  // orderflow access.
   rpc SubscribeOrderflow(SubscribeOrderflowRequest) returns (stream Bundles);
 
   // Bids on streamed bundles and streams back what happened to every bid. Requires intake access.

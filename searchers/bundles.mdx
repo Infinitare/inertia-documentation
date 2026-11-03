@@ -7,9 +7,9 @@ description: Bid tips to place your transactions directly behind a streamed bund
 
 ## Open the stream first
 
-Inertia holds a streamed bundle for bidding when it matches your orderflow subscription while your bid stream is open. Open `SubmitBundles` before you subscribe, and keep it open.
+Inertia streams only bundles that are up for auction. A bundle goes up for auction when it matches the orderflow subscription of a searcher whose bid stream is open. Open `SubmitBundles` before you subscribe, and keep it open.
 
-Every held bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. Some streamed bundles are not up for auction, and a bid on one of them returns `NOT_HELD`. A bundle with 5 transactions is never up for auction, since the limit of 5 transactions per bundle leaves no room for yours.
+Every streamed bundle gets its own 50 ms auction. The 50 ms start right before Inertia streams the bundle to you, and your network latency counts against them. A bundle with 5 transactions is never up for auction and never streamed, since the limit of 5 transactions per bundle leaves no room for yours.
 
 Auctions follow the [leader window](/searchers/orderflow#leader-windows). An auction can run up to 8 slots before the window starts. Inertia sends the bundle right after the auction closes, and it can land once the window starts. An auction that starts right before the cutoff at the end of the window still runs its full 50 ms, so its bundle can miss the window.
 
@@ -91,7 +91,7 @@ A bid can get `Outbid` first and `Sent` as a backup later. Read the updates cont
 
 | Reason | Meaning |
 | --- | --- |
-| `NOT_HELD` | The bundle is unknown, not up for auction, or its auction already closed. |
+| `NOT_HELD` | The bundle is unknown, or its auction already closed. |
 | `BUNDLE_SIZE` | The bid has no transactions, or more than 5 together with the streamed bundle. |
 | `INVALID` | A transaction does not parse. |
 | `UNVERIFIED` | A signature does not verify. |
