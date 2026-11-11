@@ -1,0 +1,60 @@
+---
+title: Stream preconfs
+description: Subscribe to the transactions a connected validator executed in its own leader slots, before the block is complete.
+---
+
+`SubscribePreconfs` streams the transactions that touch one of your accounts as soon as a validator connected to the node executed them in its own leader slot. You receive each one while the validator still builds the block. The call needs the `preconfs` permission.
+
+A preconf tells you that the leader executed the transaction and keeps it in its block. The cluster still has to confirm that block.
+
+## Subscribe
+
+Send 1 to 1,024 accounts as raw 32-byte public keys. A transaction matches when it uses one of them. Accounts loaded from an address lookup table count too.
+
+```protobuf
+message SubscribePreconfsRequest {
+  repeated bytes accounts = 1;
+  bool include_failed = 2;
+}
+```
+
+By default the stream carries only transactions that succeeded. Set `include_failed` to also receive the ones that failed. A failed transaction stays in the block and pays its fee.
+
+To test your key, subscribe with [grpcurl](https://github.com/fullstorydev/grpcurl) and the [protocol file](/searchers/protocol). grpcurl reads and prints bytes as base64. The account below is the Pump.fun program `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`.
+
+```bash
+grpcurl -plaintext \
+  -proto searcher.proto \
+  -H 'x-api-key: YOUR_API_KEY' \
+  -d '{"accounts": ["AVbg9pNmWs9E2xVovxdbqlGJy5f10v87ZV0rtv1tGLA="], "include_failed": true}' \
+  84.32.103.226:11227 \
+  inertia.searcher.v1.Searcher/SubscribePreconfs
+```
+
+## Messages
+
+Each `Preconfs` message carries a batch of preconfs. A `Preconf` has four fields:
+
+- `slot` is the slot of the block that holds the transaction.
+- `signature` is the 64-byte signature of the transaction.
+- `transaction` is the Solana `VersionedTransaction` in [wire format](/searchers/protocol#transaction-format).
+- `success` is `false` for a transaction that failed. You see those only with `include_failed`.
+
+The stream covers everything the validator executes in its leader slots, whatever path the transaction took to the validator. Nothing on this stream is held or up for auction.
+
+In rare cases the validator sends a transaction without the accounts from its address lookup tables. That transaction then matches on its static accounts only.
+
+## Leader windows
+
+The stream sends only while a validator connected to the node leads. Between those windows it stays silent. [`GetLeaderWindows`](/searchers/leader-windows) lists the next windows of each node.
+
+## Limits
+
+- Read the stream continuously. When your client falls behind, the node drops batches for your stream.
+- Each node serves a limited number of preconf streams across all searchers. When all are taken, the call fails with `RESOURCE_EXHAUSTED`.
+
+| Status | Cause |
+| --- | --- |
+| `INVALID_ARGUMENT` | No accounts, more than 1,024 accounts, or an account that is not 32 bytes long. |
+| `PERMISSION_DENIED` | The key lacks the `preconfs` permission. |
+| `RESOURCE_EXHAUSTED` | All preconf streams on this node are taken. |

@@ -69,7 +69,15 @@ Inertia keeps the 3 highest bids on a bundle, and only your highest bid among th
 - A bid that does not beat the current leader gets `Outbid` right away, with the winning tip. Inertia keeps it as a backup when it is among the 3 highest bids.
 - To raise your bid, sign a new transaction with the higher tip and send it as a new bid. It replaces your earlier bid on the bundle. A bid that does not beat your own earlier bid gets `Outbid` with the winning tip, and the earlier bid stays.
 
-When the auction closes, Inertia sends one bundle per kept bid to the validator, highest tip first. Each bundle holds the streamed transactions first and the bid after them. The validator executes a bundle as a whole or not at all, and it runs the bundles in order. Once one bundle lands, every bundle behind it fails, because the validator already processed the streamed transactions. A backup lands only when every bundle before it failed. Every bid in a sent bundle gets `Sent` with its tip and rank. 25 ms later, Inertia also forwards the streamed transactions on their own as a fallback.
+When the auction closes, Inertia sends one bundle per kept bid to the validator, highest tip first. Each bundle holds the streamed transactions first and the bid after them. The validator executes a bundle as a whole or not at all, and it runs the bundles in order. Once one bundle lands, every bundle behind it fails, because the validator already processed the streamed transactions. A backup lands only when every bundle before it failed. Every bid in a sent bundle gets `Sent` with its tip and rank.
+
+The validator then reports what it did with each bundle, and Inertia passes that on as [`Landed` or `Dropped`](#outcome).
+
+The streamed transactions also go out on their own, as a fallback for the case that no bundle lands:
+
+- When a bundle lands, Inertia skips the fallback.
+- When the validator dropped every sent bundle, Inertia forwards the streamed transactions right away.
+- When neither happened after 100 ms, Inertia forwards them then. Near the end of the window it forwards them earlier, 25 ms before the window ends.
 
 ## Updates
 
@@ -77,15 +85,37 @@ Every `BundleUpdate` carries three fields:
 
 - `signature` is the streamed bundle you bid on.
 - `bid_signature` is the signature of the first transaction in your bid.
-- `update` is one of `Sent`, `Outbid` or `Rejected`.
+- `update` is one of `Sent`, `Outbid`, `Rejected`, `Landed` or `Dropped`.
 
 | Update | Meaning |
 | --- | --- |
 | `Sent` | Inertia sent your bundle to the validator. `tip` is your tip. `rank` is the position of your bundle. 0 goes first, 1 and 2 are backups behind it. |
 | `Outbid` | Another bid tips more. `tip` is the winning tip. Inertia may still send your bid as a backup. |
 | `Rejected` | Inertia dropped your bid. `reason` and `detail` say why. |
+| `Landed` | The validator executed your bundle and put it in its block. `slot` is the slot of that block. |
+| `Dropped` | The validator executed your bundle and left it out of its block, because a transaction failed. |
 
-A bid can get `Outbid` first and `Sent` as a backup later. Read the updates continuously. When your client falls behind, the node drops updates.
+A bid can get `Outbid` first and `Sent` as a backup later. `Landed` and `Dropped` only follow `Sent`. Read the updates continuously. When your client falls behind, the node drops updates.
+
+### Outcome
+
+Every sent bundle that the validator executes gets `Landed` or `Dropped`. A bundle that the validator never executed gets neither. That happens when the bundle expired, or when another bundle displaced it.
+
+`Dropped` names the transaction that failed and the error of the validator:
+
+| Field | Meaning |
+| --- | --- |
+| `slot` | The slot in which the validator executed the bundle. |
+| `failed` | The signature of the transaction that failed. It can be the streamed transaction. Every other transaction of the bundle failed along with it. |
+| `error` | The validator's transaction error as a negative code. |
+| `instruction_error` | The instruction error as a negative code, when an instruction failed. |
+| `instruction` | The index of the instruction that failed. |
+| `custom` | The custom error code of the program, when the program returned one. |
+| `detail` | The error as Agave prints it, for example `Error processing Instruction 2: custom program error: 0x1771`. |
+
+`error` counts the variants of Agave's `TransactionError` from -1 down. -7 is `AlreadyProcessed`, and -9 is `InstructionError`. On -9, `instruction_error` counts the variants of `InstructionError` the same way, and -26 is `Custom`. `instruction`, `instruction_error` and `custom` are 0 when they do not apply.
+
+Once a bundle before yours landed, the streamed transaction in your backup fails as already processed. A backup can then get `Dropped` with the streamed transaction as `failed`.
 
 ### Rejection reasons
 

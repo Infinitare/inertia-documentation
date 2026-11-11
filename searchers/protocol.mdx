@@ -21,6 +21,10 @@ service Searcher {
   // Bids on streamed bundles and streams back what happened to every bid. Requires intake access.
   rpc SubmitBundles(stream Bundles) returns (stream BundleUpdate);
 
+  // Streams the transactions the validators behind this node executed in their own leader slots, as they execute and
+  // before the block is complete, batched. Requires preconfs access.
+  rpc SubscribePreconfs(SubscribePreconfsRequest) returns (stream Preconfs);
+
   // Returns the upcoming leader windows of the validators behind this node, as far as the leader schedule is known.
   rpc GetLeaderWindows(GetLeaderWindowsRequest) returns (LeaderWindows);
 }
@@ -46,6 +50,26 @@ message SubscribeOrderflowRequest {
   repeated bytes accounts = 1;
 }
 
+message SubscribePreconfsRequest {
+  // 1 to 1024 32-byte pubkeys, static or loaded from a lookup table. A transaction matches if it touches one of them.
+  repeated bytes accounts = 1;
+  // Also streams the transactions that failed. They stay in the block and pay their fee.
+  bool include_failed = 2;
+}
+
+// A transaction the leader executed and keeps in its block of this slot. A failed one has success = false and is only
+// streamed with include_failed.
+message Preconf {
+  uint64 slot = 1;
+  bytes signature = 2;
+  bytes transaction = 3;
+  bool success = 4;
+}
+
+message Preconfs {
+  repeated Preconf preconfs = 1;
+}
+
 // Streamed: the signature of the first transaction and all transactions of the bundle, one for a plain transaction.
 // Submitted: the signature of the streamed bundle bid on and only the searcher's own transactions, which have to
 // transfer the tip to one of the tip accounts. Both together may not exceed 5 transactions.
@@ -67,6 +91,8 @@ message BundleUpdate {
     Outbid outbid = 3;
     Rejected rejected = 4;
     Sent sent = 5;
+    Landed landed = 6;
+    Dropped dropped = 7;
   }
 }
 
@@ -107,11 +133,31 @@ message Sent {
   uint64 tip = 1;
   uint32 rank = 2;
 }
+
+// The bid's bundle executed and is in the block of this slot. Follows Sent, as does Dropped; a bid the validator never
+// executed, because its bundle expired or was displaced, gets neither.
+message Landed {
+  uint64 slot = 1;
+}
+
+// The validator executed the bid's bundle in this slot and left it out of its block. `failed` is the transaction that
+// failed, which may be the streamed one; `error` is the validator's transaction error for it, named in `detail` together
+// with the instruction index and the program's custom error code when an instruction failed. Every other transaction of
+// the bundle failed as its peer.
+message Dropped {
+  uint64 slot = 1;
+  bytes failed = 2;
+  int32 error = 3;
+  int32 instruction_error = 4;
+  uint32 instruction = 5;
+  uint32 custom = 6;
+  string detail = 7;
+}
 ```
 
 ## Transaction format
 
-Every entry in `transactions` is one serialized Solana `VersionedTransaction`. These are the bytes you base64-encode for the `sendTransaction` RPC call. The message can be legacy, v0 or v1.
+Every entry in `transactions` and every `transaction` of a `Preconf` is one serialized Solana `VersionedTransaction`. These are the bytes you base64-encode for the `sendTransaction` RPC call. The message can be legacy, v0 or v1.
 
 In Rust, `bincode` parses the bytes into `solana_transaction::versioned::VersionedTransaction`, and serializes your bid transactions the same way:
 
