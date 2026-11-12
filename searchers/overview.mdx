@@ -7,7 +7,7 @@ description: Stream the Inertia orderflow, bid tips to place your bundle directl
 The searcher API is in early alpha. The API, its limits and the auction rules can change.
 </Callout>
 
-Inertia streams the transactions and bundles that pass through its network on their way to the validators. You subscribe to the accounts you care about, and you bid tips to place your own transactions directly behind a streamed transaction. You can also stream [preconfs](/searchers/preconfs), the transactions a connected validator executed in its own leader slots.
+Inertia streams the transactions and bundles that pass through its network on their way to the validators. You subscribe to the accounts you care about, and you bid tips to place your own transactions directly behind a streamed transaction. You can also stream [preconfs](/searchers/preconfs), the transactions a connected validator executed in its own leader slots. With [`SubmitWindow`](/searchers/windows) you schedule your own transactions for each slot of an upcoming leader window.
 
 ## How it works
 
@@ -23,19 +23,20 @@ Inertia streams the transactions and bundles that pass through its network on th
 
 Every call needs an API key. Ask for one on [Telegram](https://t.me/inertiamev) or [Discord](https://discord.gg/mts4daSNvr).
 
-Inertia grants three permissions per key:
+Inertia grants four permissions per key:
 
 | Permission | Call |
 | --- | --- |
 | `orderflow` | `SubscribeOrderflow` |
 | `intake` | `SubmitBundles` |
 | `preconfs` | `SubscribePreconfs` |
+| `windows` | `SubmitWindow` |
 
-You need `orderflow` and `intake` to bid. When Inertia revokes a permission, your open streams close within 30 seconds.
+You need `orderflow` and `intake` to bid. When Inertia revokes a permission, your open streams and scheduled windows end within 30 seconds.
 
 `GetLeaderWindows` works with any key.
 
-Each node keeps one orderflow stream, one bid stream and one preconf stream per key. When you open a new one, the node closes the old one.
+Each node keeps one orderflow stream, one bid stream and one preconf stream per key. When you open a new one, the node closes the old one. Each key can also schedule one submission per leader window.
 
 ## Connect
 

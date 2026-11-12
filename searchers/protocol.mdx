@@ -27,6 +27,26 @@ service Searcher {
 
   // Returns the upcoming leader windows of the validators behind this node, as far as the leader schedule is known.
   rpc GetLeaderWindows(GetLeaderWindowsRequest) returns (LeaderWindows);
+
+  // Sends the searcher's transactions slot by slot in one upcoming leader window and streams back what happened to each,
+  // by its signature in `bid_signature`. Requires windows access.
+  rpc SubmitWindow(SubmitWindowRequest) returns (stream BundleUpdate);
+}
+
+// At most 10, sent in this order.
+message SlotTransactions {
+  repeated bytes transactions = 1;
+}
+
+message SubmitWindowRequest {
+  // First slot of an upcoming window from GetLeaderWindows.
+  uint64 first_slot = 1;
+  // Up to 4, one per slot of the window. At least one transaction has to transfer to a tip account.
+  repeated SlotTransactions slots = 2;
+  // Optional pool that does not exist yet. Other transactions touching it are rejected during the window.
+  bytes pool = 3;
+  // Lets buys on the pool through.
+  bool allow_buys = 4;
 }
 
 message GetLeaderWindowsRequest {}

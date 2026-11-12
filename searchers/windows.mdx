@@ -1,0 +1,91 @@
+---
+title: Submit windows
+description: Schedule your own transactions for each slot of an upcoming leader window, and reserve a new pool for them.
+---
+
+`SubmitWindow` schedules your own transactions for one upcoming [leader window](/searchers/leader-windows). You assign them to the 4 slots of the window, and Inertia sends each slot's transactions to the leader when that slot starts. You can also reserve a pool that does not exist yet. The call needs the `windows` permission.
+
+## Submit
+
+```protobuf
+message SlotTransactions {
+  repeated bytes transactions = 1;
+}
+
+message SubmitWindowRequest {
+  uint64 first_slot = 1;
+  repeated SlotTransactions slots = 2;
+  bytes pool = 3;
+  bool allow_buys = 4;
+}
+```
+
+- `first_slot` is the `first_slot` of a window from [`GetLeaderWindows`](/searchers/leader-windows). The window must not have started yet.
+- `slots` holds up to 4 entries, one per slot of the window in slot order. Leave an entry empty to skip that slot.
+- `pool` and `allow_buys` are optional and [reserve a pool](#reserve-a-pool).
+
+Each slot takes at most 10 transactions in the same [wire format](/searchers/protocol#transaction-format) as the stream. The request needs at least one transaction.
+
+You can submit one request per window. A second request for the same window fails with `ALREADY_EXISTS`, and a submission cannot be changed or cancelled.
+
+Submit each window to the node that listed it. Only validators connected to that node count.
+
+### Tip
+
+Your tip is the sum of all System Program transfers from your transactions to an [Inertia tip account](/searchers/bundles#tip). At least one transaction in the request has to tip.
+
+Inertia currently requires a tip of at least 3.5% of the volume your transactions trade in the window. If they trade 100 SOL, tip at least 3.5 SOL.
+
+Every transaction lands on its own. You pay the tip of each transaction that lands, whatever happens to the others.
+
+### Checks
+
+Inertia checks every transaction when you submit, with the same [rules as a bid](/searchers/bundles#checks). When one transaction fails, the call fails with `INVALID_ARGUMENT` and schedules nothing. The message starts with the [rejection reason](/searchers/bundles#rejection-reasons), followed by the rule for `REJECTED`.
+
+## Reserve a pool
+
+Set `pool` to the 32-byte address of a pool that your transactions create. Inertia then rejects every other transaction that touches the pool as `tracked_pool`, in the orderflow and in bids. The reservation starts 8 slots before the window and ends with its last slot.
+
+Inertia accepts the pool under three conditions:
+
+- One of your transactions references it.
+- The account does not exist on chain yet.
+- No other searcher has reserved it, and Inertia does not lock it at the moment.
+
+Set `allow_buys` to let buys from other senders on the pool through. Sells and every other transaction stay rejected.
+
+The reservation covers only the transactions that pass through Inertia.
+
+## Sending
+
+About 10 ms after a slot of the window starts, Inertia sends that slot's transactions to the leader. It sends them one by one in your order, and the validator keeps that order. When the node missed the start of a slot, it sends that slot's transactions together with the next slot's, ahead of them.
+
+Right before it sends a transaction, Inertia checks it against the locked pools again. A transaction that touches a pool Inertia locks, or a pool another searcher reserved, gets `Rejected` with `tracked_pool`.
+
+## Updates
+
+The call returns a stream of [`BundleUpdate`](/searchers/bundles#updates) messages, one stream per submission. `bid_signature` is the signature of the transaction the update is about. `signature` stays empty.
+
+| Update | Meaning |
+| --- | --- |
+| `Sent` | Inertia sent the transaction to the leader. `tip` is the tip of this transaction, and `rank` is 0. |
+| `Landed` | The validator executed the transaction and put it in its block. `slot` is the slot of that block. |
+| `Dropped` | The validator executed the transaction and left it out of its block, because it failed. The fields match a [dropped bundle](/searchers/bundles#outcome). |
+| `Rejected` | Inertia did not send the transaction. `reason` is `REJECTED` with the detail `tracked_pool`, or `UNDELIVERABLE`. |
+
+`UNDELIVERABLE` means that the leader was not connected when the slot started, or that the window passed before Inertia could send the transaction.
+
+`Landed` and `Dropped` only follow `Sent`. A transaction that the validator never executed gets neither.
+
+The stream ends about 10 slots after the last slot of the window. It also ends when Inertia revokes the `windows` permission. Inertia then drops the transactions it has not sent yet and releases the pool.
+
+## Errors
+
+| Status | Cause |
+| --- | --- |
+| `PERMISSION_DENIED` | The key lacks the `windows` permission. |
+| `INVALID_ARGUMENT` | No transactions, more than 4 slots, more than 10 transactions in a slot, a transaction that failed a check, a pool that is not 32 bytes long, or a pool that none of your transactions references. |
+| `FAILED_PRECONDITION` | `first_slot` is not the first slot of an upcoming window on this node, or the pool already exists. |
+| `ALREADY_EXISTS` | You already submitted for this window, or the pool is already reserved or locked. |
+| `RESOURCE_EXHAUSTED` | The node has too many submissions to check. Send the request again. |
+| `UNAVAILABLE` | The node could not check the transactions or the pool. Send the request again. |

@@ -58,6 +58,11 @@
                 "icon": "clock"
               },
               {
+                "title": "Submit windows",
+                "path": "searchers/windows",
+                "icon": "calendar-clock"
+              },
+              {
                 "title": "Protocol",
                 "path": "searchers/protocol",
                 "icon": "file-code"
