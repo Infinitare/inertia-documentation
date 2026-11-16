@@ -29,7 +29,8 @@ service Searcher {
   rpc GetLeaderWindows(GetLeaderWindowsRequest) returns (LeaderWindows);
 
   // Sends the searcher's transactions slot by slot in one upcoming leader window and streams back what happened to each,
-  // by its signature in `bid_signature`. Requires windows access.
+  // by its signature in `bid_signature`. Requires windows access. A window takes up to 10 submissions of one searcher,
+  // sent in the order they arrived, each with its own stream.
   rpc SubmitWindow(SubmitWindowRequest) returns (stream BundleUpdate);
 }
 

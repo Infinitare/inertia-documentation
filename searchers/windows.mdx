@@ -27,13 +27,13 @@ message SubmitWindowRequest {
 
 Each slot takes at most 10 transactions in the same [wire format](/searchers/protocol#transaction-format) as the stream. The request needs at least one transaction.
 
-You can submit one request per window. A second request for the same window fails with `ALREADY_EXISTS`, and a submission cannot be changed or cancelled.
+You can submit up to 10 requests per window. Each request is its own submission with its own tip, checks and update stream. An 11th request fails with `RESOURCE_EXHAUSTED`. A request with a transaction that you already scheduled in this window fails with `ALREADY_EXISTS`. A submission cannot be changed or cancelled.
 
 Submit each window to the node that listed it. Only validators connected to that node count.
 
 ### Tip
 
-Your tip is the sum of all System Program transfers from your transactions to an [Inertia tip account](/searchers/bundles#tip). At least one transaction in the request has to tip.
+Your tip is the sum of all System Program transfers from your transactions to an [Inertia tip account](/searchers/bundles#tip). At least one transaction in every request has to tip.
 
 Inertia currently requires a tip of at least 3.5% of the volume your transactions trade in the window. If they trade 100 SOL, tip at least 3.5 SOL.
 
@@ -53,6 +53,8 @@ Inertia accepts the account under three conditions:
 - The account does not exist on chain yet, or you [prove that you hold its key](#reserve-an-existing-account).
 - No other searcher has reserved it, and Inertia does not lock it at the moment.
 
+A later submission for the same window can name an account that one of your earlier submissions reserved. The reservation keeps the `allow_buys` of the first submission.
+
 When the account is a pool, set `allow_buys` to let buys from other senders on the pool through. Sells and every other transaction stay rejected.
 
 The reservation covers only the transactions that pass through Inertia.
@@ -69,9 +71,9 @@ Each signature works for one window. Sign again for every window you submit.
 
 ## Sending
 
-About 10 ms after a slot of the window starts, Inertia sends that slot's transactions to the leader. It sends them one by one in your order, and the validator keeps that order. When the node missed the start of a slot, it sends that slot's transactions together with the next slot's, ahead of them.
+About 10 ms after a slot of the window starts, Inertia sends that slot's transactions to the leader. It sends them one by one in your order, and the validator keeps that order. When you have several submissions in a window, Inertia sends them in the order they arrived. When the node missed the start of a slot, it sends that slot's transactions together with the next slot's, ahead of them.
 
-Right before it sends a transaction, Inertia checks it against the locked pools and the reserved accounts again. A transaction that touches a pool Inertia locks, or an account another searcher reserved, gets `Rejected` with `tracked_pool`.
+Right before it sends a transaction, Inertia checks it against the locked pools and the reserved accounts again. A transaction that touches a pool Inertia locks, or an account another searcher reserved, gets `Rejected` with `tracked_pool`. Accounts that your own submissions reserved for this window pass.
 
 ## Updates
 
@@ -97,6 +99,6 @@ The stream ends about 10 slots after the last slot of the window. It also ends w
 | `PERMISSION_DENIED` | The key lacks the `windows` permission, or `signature` does not match the account and the `first_slot`. |
 | `INVALID_ARGUMENT` | No transactions, more than 4 slots, more than 10 transactions in a slot, a transaction that failed a check, an account that is not 32 bytes long, or an account that none of your transactions references. |
 | `FAILED_PRECONDITION` | `first_slot` is not the first slot of an upcoming window on this node, or the account already exists and the request has no `signature`. |
-| `ALREADY_EXISTS` | You already submitted for this window, or the account is already reserved or locked. |
-| `RESOURCE_EXHAUSTED` | The node has too many submissions to check. Send the request again. |
+| `ALREADY_EXISTS` | One of the transactions is already scheduled in this window, or the account is already reserved or locked. |
+| `RESOURCE_EXHAUSTED` | The window already has 10 of your submissions, or the node has too many submissions to check. In the second case, send the request again. |
 | `UNAVAILABLE` | The node could not check the transactions or the account. Send the request again. |
