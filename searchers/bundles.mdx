@@ -148,4 +148,4 @@ For `REJECTED`, `detail` holds one of these rules:
 | `lookup_table` | An address lookup table is deactivated. |
 | `lookup_unresolved` | The node cannot load an address lookup table. |
 | `expired_blockhash` | The blockhash expired, or the node does not know it. |
-| `tracked_pool` | The transaction touches a pool that Inertia locks at the moment. |
+| `tracked_pool` | The transaction touches a pool that Inertia locks at the moment, or one of its instructions uses an account that a searcher [reserved for a window](/searchers/windows#reserve-an-account). |
